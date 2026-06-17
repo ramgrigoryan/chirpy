@@ -3,12 +3,7 @@ package main
 import (
 	"fmt"
 	"net/http"
-	"sync/atomic"
 )
-
-type apiConfig struct {
-	fileserverHits atomic.Int32
-}
 
 func (cfg *apiConfig) middlewareMetricsInc(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -31,4 +26,14 @@ func (c *apiConfig) ReadHits(writer http.ResponseWriter, req *http.Request) {
 
 func (c *apiConfig) Reset(writer http.ResponseWriter, req *http.Request) {
 	c.fileserverHits.Swap(0)
+
+	if c.platform != "dev" {
+		respondWithErr(writer, http.StatusForbidden, "unable to delete all users", fmt.Errorf("forbidden operation"))
+		return
+	}
+
+	_, err := c.dbQueries.DeleteUsers(req.Context())
+	if err != nil {
+		respondWithErr(writer, http.StatusInternalServerError, "unable to delete users", err)
+	}
 }
